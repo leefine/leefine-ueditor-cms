@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leefine.cms.dao.InfoTreeMapper">
+	<select id="getTreeList" resultType="AtlCat">
+		SELECT pg.ID,pg.PID,pg.Name,pg.Status,pg.Descr FROM atl_cat pg
+		order by pg.PID asc,pg.id asc
+	</select>
+	<select id="getListPage" resultType="AtlCat" parameterType="hashmap">
+		SELECT pg.ID
+		,pg.PID
+		,pg.Name
+		,pg.Status
+		,pg.descr,
+		<include refid="common.selCRTMDF"></include>
+		FROM atl_cat pg
+		where pid = #{id}
+	</select>
+	<select id="getByID" resultType="AtlCat" parameterType="int">
+		SELECT
+		pg.ID
+		,pg.PID
+		,pg.Name
+		,pg.Status
+		,pg.descr,pg.ifmainmenu,pg.pagetype
+		FROM
+		atl_cat pg
+		where
+		pg.id=#{id}
+	</select>
+	<insert id="create" parameterType="AtlCat">
+		INSERT INTO atl_cat
+		(PID
+		,Name
+		,[Status]
+		,Descr,IfMainMenu,pagetype
+		,CRTOn
+		,CRTBy
+		,MDFOn
+		,MDFBy)
+		VALUES
+		(#{pid}
+		,#{name}
+		,#{status}
+		,#{descr},#{ifmainmenu},#{pagetype}
+		,#{crton}
+		,#{crtby}
+		,#{mdfon}
+		,#{mdfby})
+	</insert>
+	<update id="update" parameterType="AtlCat">
+		update atl_cat		set		Name=#{name},[Status]=#{status},Descr=#{descr},ifmainmenu=#{ifmainmenu},pagetype=#{pagetype},
+		MDFOn=#{mdfon},MDFBy=#{mdfby}		where id = #{id}
+	</update>
+	<delete id="delete" parameterType="int">
+		delete from atl_cat		where id in
+		<foreach collection="ids" item="item" index="index" open="("
+			separator="," close=")">#{item}
+		</foreach>
+	</delete>
+	<select id="ifHasChild" parameterType="int" resultType="int">
+		select Count(*) from atl_cat where pid = #{id}
+	</select>
+	<select id="getSonListByID" resultType="hashmap">
+		with
+		cte_child(ID,PID,NAME)as
+		(
+		select ID,PID,NAME from atl_cat where
+		ID=#{id}
+		union all select a.ID,a.PID,a.NAME from atl_cat a
+		inner
+		join cte_child b on a.PID=b.ID
+		)
+		select * from cte_child order by PID,ID
+	</select>
+	<select id="getDirSonListByID" resultType="hashmap">
+		SELECT D,NAME,IFSINGLEPAGE		FROM		atl_cat where pid=#{id}
+	</select>
+	<select id="getDirSonListByIDWithoutSinglePage" resultType="hashmap">
+		SELECT ID,NAME,IFSINGLEPAGE FROM atl_cat where pid=#{id} and ifsinglepage!=1
+	</select>
+	<select id="getParentListByID" resultType="hashmap">
+		with
+		cte_root(ID,PID,NAME)as
+		(
+		select ID,PID,NAME from atl_cat where
+		ID=#{id}
+		union all select a.ID,a.PID,a.NAME from atl_cat a
+		inner
+		join cte_root b on b.PID=a.ID
+		)
+		select * from cte_root order by PID,ID
+	</select>
+	<select id="getMainMenuByID" resultType="hashmap">
+		SELECT ID,Name FROM atl_cat where pid=#{id} and IfMainMenu=0
+	</select>
+</mapper>

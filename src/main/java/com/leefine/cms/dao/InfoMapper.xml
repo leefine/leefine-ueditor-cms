@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leefine.cms.dao.InfoMapper">
+    <select id="getListPage" parameterType="hashmap" resultType="AtlInfo">
+        select * from atl_info c
+        <where>
+            <if test="kw != null">
+                and (
+                c.title like '%'+#{kw}+'%'
+                or c.descr like
+                '%'+#{kw}+'%'
+                )
+            </if>
+            <if test="pgid != null">
+                and EXISTS (select info_id from atl_info_cat where cat_id=#{pgid} and info_id=c.id)
+            </if>
+            <if test="pgidsList != null">
+                and EXISTS (select info_id from atl_info_cat where info_id=c.id
+                and cat_id in
+                <foreach collection="pgidsList" item="item" open="(" separator=","  close=")">
+                    <if test="item!=null and item!=''">#{item}</if>
+                </foreach>
+                )
+            </if>
+            <if test="user_id > 1">
+                and exists(
+                select info_id from atl_info_cat ait
+                left join atl_cat_role sri on ait.cat_id=sri.cat_id
+                left join sys_user su on su.role_id=sri.role_id
+                where su.id=#{user_id} and c.id=ait.INFO_ID and ait.ismain=1
+                )
+            </if>
+        </where>
+    </select>
+    <select id="getByID" parameterType="int" resultType="AtlInfo">
+		select
+		id, title, descr, pv, picpath,author,titlecolor
+		from atl_info where id = #{id}
+	</select>
+    <select id="getInfoCopyTreeIDS" parameterType="int" resultType="hashmap">
+		select cat_id from atl_info_cat where info_id = #{id} and
+		ismain=0
+	</select>
+    <select id="getInfoTreeMainID" parameterType="int" resultType="string">
+		select top 1 cat_id from atl_info_cat where info_id = #{id} and ismain=1
+	</select>
+    <insert id="create" parameterType="AtlInfo" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into atl_info
+        (title,descr,picpath,author,titlecolor,
+        <include refid="common.selCRTMDF"/>
+        )
+        values
+        (#{title},#{descr},#{picpath},#{author},#{titlecolor},
+        <include refid="common.insCRTMDF"/>
+        )
+    </insert>
+    <insert id="createTree" parameterType="hashmap">
+        INSERT INTO atl_info_cat(info_id,cat_id,ismain) VALUES
+        <foreach collection="ids" item="item" separator=",">(#{info_id},#{item},0)
+        </foreach>
+    </insert>
+    <insert id="createTreeMain" parameterType="hashmap">
+        <selectKey keyProperty="count" resultType="int" order="BEFORE">
+            select count(*) from atl_info_cat where info_id=#{info_id} and
+            cat_id=#{mainid}
+        </selectKey>
+        <if test="count>0">
+            update atl_info_cat set ismain=1 where
+            info_id=#{info_id} and
+            cat_id=#{mainid}
+        </if>
+        <if test="count==0">
+            INSERT INTO
+            atl_info_cat(info_id,cat_id,ismain)
+            VALUES(#{info_id},#{mainid},1)
+        </if>
+    </insert>
+    <delete id="deleteInfoTree">
+		delete from atl_info_cat where info_id =#{id}
+	</delete>
+    <update id="update" parameterType="AtlInfo">
+        update atl_info
+        set title = #{title},titlecolor = #{titlecolor}, descr
+        = #{descr},author =
+        #{author}, picpath =
+        #{picpath},
+        <include refid="common.updCRTMDF"/>
+        where
+        id = #{id}
+    </update>
+    <update id="updatePV">
+		update atl_info set pv=pv+1 where id = #{id}
+	</update>
+    <delete id="delete">
+        delete from atl_info where id in
+        <foreach collection="ids" item="item" index="index" open="("
+                 separator="," close=")">#{item}
+        </foreach>
+    </delete>
+    <select id="getTopNPic" resultType="hashmap">
+        select top ${n} id,title,titlecolor,picpath, pv,crton
+        from atl_info
+        where
+        picpath
+        is
+        not
+        null and picpath!='' and id
+        in(select
+        info_id from
+        atl_info_cat where
+        cat_id
+        in
+        <foreach collection="pgids" item="item" open="(" separator=","
+                 close=")">
+            <if test="item!=null">#{item}</if>
+        </foreach>
+        ) order by crton desc
+    </select>
+    <select id="getTopN" resultType="hashmap">
+        select top ${n} id, title,titlecolor, pv, picpath,crton
+        from atl_info
+        where id
+        in(select
+        info_id from atl_info_cat where
+        cat_id in
+        <foreach collection="pgids" item="item" open="(" separator=","
+                 close=")">
+            <if test="item!=null">#{item}</if>
+        </foreach>
+        ) order by crton desc
+    </select>
+
+    <select id="getTopNByID" resultType="hashmap">
+		select top ${n} id,
+		title,titlecolor,
+		pv,
+		picpath,crton
+		from atl_info where id
+		in(select
+		info_id from
+		atl_info_cat where cat_id=#{pgid}) order by crton
+		desc
+	</select>
+    <select id="getTopNOrderbyPV" resultType="hashmap">
+		select top ${n} id,
+		title,titlecolor,
+		pv,
+		picpath,crton
+		from atl_info order by pv desc
+	</select>
+    <select id="getTopNOrderbyCrton" resultType="hashmap">
+		select top ${n} id,
+		title,titlecolor,
+		pv,
+		picpath,crton
+		from atl_info order by crton desc
+	</select>
+</mapper>
